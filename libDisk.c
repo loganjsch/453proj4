@@ -1,4 +1,4 @@
-#include "disk_emulator.h"
+#include "libDisk.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
@@ -10,35 +10,38 @@
 Disk disks[MAX_DISKS];
 int diskCount = 0;
 
-int openDisk(char *filename, int nBytes)
-{
-    if (nBytes != 0 && nBytes < BLOCKSIZE)
-        return -1; // Failure for less than BLOCKSIZE
+int openDisk(char *filename, int nBytes) {
+    int fd;
 
-    // Calculate disk size in blocks
-    int sizeInBlocks = (nBytes > 0) ? (nBytes / BLOCKSIZE) : 0;
-    int actualSize = sizeInBlocks * BLOCKSIZE;
-
-    int fd = open(filename, (nBytes == 0) ? O_RDWR : (O_RDWR | O_CREAT | O_TRUNC), 0666);
-    if (fd < 0)
-        return -1; // Failure to open file
-
-    if (nBytes > 0 && ftruncate(fd, actualSize) < 0)
-    { // Set disk size
-        close(fd);
-        return -1; // Failure to set size
+    if (nBytes < 0 || filename == NULL) {
+        return -1; // Invalid arguments
     }
 
-    // Initialize and store disk information
-    if (diskCount >= MAX_DISKS)
-    {
-        close(fd);
-        return -1; // No more disks can be managed
+    if (nBytes == 0) {
+        fd = open(filename, O_RDWR);
+    } else {
+        // Create a new file or truncate existing one,
+        fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0666);
     }
-    disks[diskCount].fd = fd;
-    disks[diskCount].size = sizeInBlocks;
-    return diskCount++; // Return disk number and increment count
+
+    if (fd < 0) {
+        return -1; // Opening or creating the file failed
+    }
+
+    // Fill the file with null characters if creating a new file with specified size
+    if (nBytes > 0) {
+        for (int i = 0; i < nBytes; i++) {
+            if (write(fd, "\0", 1) != 1) {
+                // Failed to write, close the file and indicate failure
+                close(fd);
+                return -1;
+            }
+        }
+    }
+
+    return fd;
 }
+
 
 int closeDisk(int disk)
 {
@@ -51,32 +54,41 @@ int closeDisk(int disk)
 
 int readBlock(int disk, int bNum, void *block)
 {
-    if (disk < 0 || disk >= diskCount || disks[disk].fd < 0)
-        return -1; // Check if disk is valid and open
-    if (bNum < 0 || bNum >= disks[disk].size)
-        return -1; // Check if block number is within bounds
+    if(bNum < 0 || lseek(disk, bNum * BLOCKSIZE, SEEK_SET) < 0) {
+        return -1; // Return error if block number is negative or seeking fails
+    }
 
-    off_t offset = bNum * BLOCKSIZE;
-    if (lseek(disks[disk].fd, offset, SEEK_SET) < 0)
-        return -1; // Seek to block position
+    ssize_t bytesRead = read(disk, block, BLOCKSIZE);
+    if (bytesRead < 0) {
+        // Read operation failed
+        return -1;
+    } else if (bytesRead != BLOCKSIZE) {
+        return -1; // Partial Read we're calling it an error
+    }
 
-    if (read(disks[disk].fd, block, BLOCKSIZE) != BLOCKSIZE)
-        return -1; // Read block
-    return 0;
+    return 0; // Success code = 0
+
 }
 
-int writeBlock(int disk, int bNum, void *block)
-{
-    if (disk < 0 || disk >= diskCount || disks[disk].fd < 0)
-        return -1; // Check if disk is valid and open
-    if (bNum < 0 || bNum >= disks[disk].size)
-        return -1; // Check if block number is within bounds
+int writeBlock(int disk, int bNum, void *block) {
 
-    off_t offset = bNum * BLOCKSIZE;
-    if (lseek(disks[disk].fd, offset, SEEK_SET) < 0)
-        return -1; // Seek to block position
+    if(bNum < 0) {
+        // Validate block number before attempting to seek
+        return -1;
+    }
 
-    if (write(disks[disk].fd, block, BLOCKSIZE) != BLOCKSIZE)
-        return -1; // Write block
+    if(lseek(disk, bNum * BLOCKSIZE, SEEK_SET) < 0) {
+        // Error seeking to the correct position, return -1 on failure
+        return -1;
+    }
+
+    ssize_t bytesWritten = write(disk, block, BLOCKSIZE);
+    if (bytesWritten < 0) {
+        // Write operation failed
+        return -1;
+    } else if (bytesWritten != BLOCKSIZE) {
+        return -1; // partial write considered an error -1 returned 
+    }
+
     return 0;
 }

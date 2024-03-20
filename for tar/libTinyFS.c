@@ -103,30 +103,68 @@ int tfs_unmount(void) {
 
 /* Function to open a file within the TinyFS file system */
 fileDescriptor tfs_openFile(char *name) {
+    // Searching the inode blocks for an existing file with the specified name.
+    // If not found, allocating a new inode block, initializing it with the file's metadata, and updating the free block list accordingly.
+    // returning a file descriptor which can be used as an index into a table of the open files 
     return 0;
 }
 
 /* Function to close an open file */
 int tfs_closeFile(fileDescriptor FD) {
+    // validate the file descriptor
+
+    // make the entry in the open file table
+
+    // Flush any cached data or metadata for the file back to the disk if necessary.
     return 0;
 }
 
 /* Function to write data to an open file */
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
-    
+    // Validate the file descriptor.
+
+    // Locate the file's inode using the FD and read its metadata.
+
+
+    // Allocate as many file extent blocks as needed to hold the new content, updating the inode and free block list accordingly.
+
+    // Write the data from buffer into the allocated blocks.
+
+    // Update the file's size in its inode and write any changes back to the disk.
+    return 0;
 }
 
 /* Function to delete a file from the file system */
 int tfs_deleteFile(fileDescriptor FD) {
+    // Validate the file descriptor.
+
+    // Locate and read the file's inode to find all allocated file extent blocks.
+
+    // Mark all blocks used by the file (including the inode block) as free, updating the free block list accordingly.
+
+    // Remove the file from the open file table if it's open.
+
     return 0;
 }
 
 /* Function to read a byte from an open file */
 int tfs_readByte(fileDescriptor FD, char *buffer) {
+    // Validate the file descriptor and ensure the file pointer is within bounds.
+
+    // Calculate which block contains the byte to be read based on the file pointer.
+
+    // Read the appropriate file extent block and copy the byte into buffer.
+
+    // Increment the file pointer.
     return 0;
 }
 
 /* Function to seek to a specific location in an open file */
 int tfs_seek(fileDescriptor FD, int offset) {
+    // Validate the file descriptor.
+
+    // Ensure the offset is within the bounds of the file's size.
+
+    // Update the file pointer in the open file table to the new location.
     return 0;
 }

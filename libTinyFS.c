@@ -1,90 +1,132 @@
-# include "libDisk.c"
+#include "libDisk.c"
 #include "libTinyFS.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* Global Variables */
-int mounted_disk_fd = -1; // File descriptor for the mounted disk. -1 indicates no disk is mounted.
+
+void initBlock(void *block) {
+    memset(block, 0, BLOCKSIZE);
+}
 
 int tfs_mkfs(char *filename, int nBytes){
+    int disk;
+    unsigned char block[BLOCKSIZE];
+    SuperBlock superBlock;
+
     /* make TinyFS file system of size nBytes on the unix file specific by filename */
+    disk = openDisk(filename, nBytes);
+    if (disk < 0) {
+        /* return specified error code*/
+        return -1;
+    }
 
     /* initialize all data to 0x00 */
+    initBlock(&superBlock);
+    superBlock.header.blockType = SUPERBLOCK_TYPE;
+    superBlock.header.magicNumber = MAGIC_NUMBER;
+    superBlock.rootInodeBlock = 1;
+    superBlock.freeBlockList = 2;
 
-    /* set magi cnumbers */
-
-    /* initialize and writeL superblock, inodes */
-
-    int diskNum;
-    
-    // Create or overwrite a disk file with the specified size
-    if ((diskNum = openDisk(filename, nBytes)) < 0) {
-        return -1; // Error opening/creating the disk
+    /* write super block to disk */
+    if (writeBlock(disk, 0, &superBlock) < 0) {
+        /* return specified error code */
+        closeDisk(disk);
+        return -1;
     }
-    
-    // Initialize superblock
-    super_block sb = {
-        .type = 1,
-        .magic_number = MAGIC_NUMBER,
-        .root_inode = 2, // Assuming the root inode is at block 2
-        .free_blocks = 3  // Assuming the list of free blocks starts at block 3
-    };
-    
-    // Write superblock to disk
-    if (writeBlock(diskNum, 0, &sb) < 0) {
-        return -1; // Error writing superblock
-    }
-    
-    // Further initialization like creating root inode, setting up free block list, etc., would go here
 
-    return 0; // Success
+    /* init and write free blocks */
+    initBlock(block);
+    block[0] = FREE_BLOCK_TYPE;
+    block[1] = MAGIC_NUMBER;
+    for(int i = superBlock.freeBlockList; i < nBytes / BLOCKSIZE; i++){
+        if (writeBlock(disk, i, block) < 0) {
+            closeDisk(disk);
+            return -1;
+        }
+    }
+
+    /* successfully create the file system */
+    closeDisk(disk);
+    return 0;
 }
 
 /* Function to mount a TinyFS file system */
-int tfs_mount(char *filename) {
-    // Your implementation here
+int tfs_mount(char *diskname) {
+    SuperBlock superBlock;
+    unsigned char block[BLOCKSIZE];
+
+    if(mountedDisk != -1){
+        return -1;
+    }
+
+    /* attempt to open the disk (0 = opening, not create) */
+    int disk = openDisk(diskname, 0);
+    if (disk < 0){
+        return -1;
+    }
+
+    /* read the super block */
+    if(readBlock(disk, 0, &block) != 0){
+        closeDisk(disk);
+        return -1;
+    }
+
+    /* check if the super block is valid */
+    memcpy(&superBlock, block, sizeof(SuperBlock));
+    if(superBlock.header.blockType != SUPERBLOCK_TYPE || superBlock.header.magicNumber != MAGIC_NUMBER){
+        closeDisk(disk);
+        return -1;
+    }
+
+    /* file system is verified, set it as mounted */
+    mountedDisk = disk;
+
     return 0;
 }
 
 /* Function to unmount the currently mounted TinyFS file system */
 int tfs_unmount(void) {
-    // Your implementation here
+    if(mountedDisk == -1){
+        return -1;
+    }
+
+    /* attempt to close disk */
+    if(closeDisk(mountedDisk) != 0){
+        return -1;
+    }
+
+    mountedDisk = -1;
+
     return 0;
 }
 
 /* Function to open a file within the TinyFS file system */
 fileDescriptor tfs_openFile(char *name) {
-    // Your implementation here
     return 0;
 }
 
 /* Function to close an open file */
 int tfs_closeFile(fileDescriptor FD) {
-    // Your implementation here
     return 0;
 }
 
 /* Function to write data to an open file */
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
-    // Your implementation here
-    return 0;
+    
 }
 
 /* Function to delete a file from the file system */
 int tfs_deleteFile(fileDescriptor FD) {
-    // Your implementation here
     return 0;
 }
 
 /* Function to read a byte from an open file */
 int tfs_readByte(fileDescriptor FD, char *buffer) {
-    // Your implementation here
     return 0;
 }
 
 /* Function to seek to a specific location in an open file */
 int tfs_seek(fileDescriptor FD, int offset) {
-    // Your implementation here
     return 0;
 }

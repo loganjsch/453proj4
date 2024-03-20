@@ -4,19 +4,19 @@
 
 /* The default size of the disk and file system block */
 #define BLOCKSIZE 256
+#define MAX_FILENAME_LENGTH 8
+
 /* Your program should use a 10240 Byte disk size giving you 40 blocks total. This is a default size. You must be able to support different possible values */
 #define DEFAULT_DISK_SIZE 10240
 /* use this name for a default emulated disk file name */
-#define DEFAULT_DISK_NAME “tinyFSDisk”
+#define DEFAULT_DISK_NAME 'tinyFSDisk'
+
+#define MAGIC_NUMBER 0x44
 
 /* use as a special type to keep track of files */
-#define MAGIC_NUMBER 0x44
-#define SUPERBLOCK_TYPE 1
-#define INODE_TYPE 2
-#define FILE_EXTENT_TYPE 3
-#define FREE_BLOCK_TYPE 4
 
 typedef int fileDescriptor;
+
 
 typedef struct {
     unsigned char blockType;
@@ -47,6 +47,7 @@ typedef struct {
     BlockHeader header;
     unsigned short nextFreeBlock;
 } FreeBlock;
+
 typedef struct inode {
 // For TinyFS core only the file’s name and size is required. You must support names up to 8 alphanumeric characters (not including a NULL terminator), and no longer. 
 // For example: “file1234”, “file1” or “f”.
